@@ -61,7 +61,7 @@ Go to your forked repo on GitHub. You'll see a **"Compare & pull request"** butt
 
 ## 🏷️ Good First Issues
 
-Not sure where to start? Here are some beginner tasks waiting for you:
+Not sure where to start? Here are some beginner tasks: waiting for you:
 
 | Issue | Difficulty | Label |
 |-------|-----------|-------|
