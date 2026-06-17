@@ -18,7 +18,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { context, github } = { context: context, github: github };
+
             const sender = context.payload.sender.login;
             const isPR = context.eventName === 'pull_request_target';
 
