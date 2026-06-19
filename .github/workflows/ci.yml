@@ -13,9 +13,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check CONTRIBUTORS.md was modified
+      - name: Check only allowed files were modified
         run: |
           git fetch origin main
           CHANGED=$(git diff --name-only origin/main...HEAD)
           echo "Changed files: $CHANGED"
-          echo "CI check passed ✅"
+
+          if [ -z "$CHANGED" ]; then
+            echo "❌ No files were changed."
+            exit 1
+          fi
+
+          ALLOWED="CONTRIBUTORS.md FUN_FACTS.md README.md"
+          for file in $CHANGED; do
+            if ! echo "$ALLOWED" | grep -qw "$file"; then
+              echo "❌ '$file' is not an allowed file for beginner PRs."
+              echo "   Only CONTRIBUTORS.md, FUN_FACTS.md, and README.md may be modified."
+              exit 1
+            fi
+          done
+
+          echo "✅ CI check passed — all changed files are allowed."

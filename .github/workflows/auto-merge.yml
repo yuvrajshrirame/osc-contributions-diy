@@ -12,40 +12,54 @@ jobs:
       contents: write
 
     steps:
-      - name: Enable auto-merge
+      - name: Enable auto-merge for safe PRs
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
 
-            // Only auto-merge if PR touches allowed files
-            const files = await github.rest.pulls.listFiles({
+            // Fetch the list of changed files in this PR
+            const filesRes = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number
             });
 
             const allowedFiles = ['CONTRIBUTORS.md', 'FUN_FACTS.md', 'README.md'];
-            const changedFiles = files.data.map(f => f.filename);
-            const isSafe = changedFiles.every(f => allowedFiles.includes(f));
+            const changedFiles = filesRes.data.map(f => f.filename);
+            const isSafe = changedFiles.length > 0 &&
+                           changedFiles.every(f => allowedFiles.includes(f));
 
-            if (isSafe) {
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                event: 'APPROVE'
-              });
+            if (!isSafe) {
+              console.log(`⏭️ Skipped PR #${pr.number} — touches non-allowed files, needs manual review.`);
+              console.log(`   Changed: ${changedFiles.join(', ')}`);
+              return;
+            }
 
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                merge_method: 'squash'
-              });
+            // Use GitHub's auto-merge feature so the merge is QUEUED and only
+            // happens after all required status checks pass — not immediately.
+            // Requires "Allow auto-merge" to be enabled in repo Settings → General.
+            try {
+              await github.graphql(`
+                mutation EnableAutoMerge($prId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $prId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest {
+                      number
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `, { prId: pr.node_id });
 
-              console.log(`✅ Auto-merged PR #${pr.number}`);
-            } else {
-              console.log(`⏭️ Skipped PR #${pr.number} — touches non-allowed files, needs manual review`);
+              console.log(`✅ Auto-merge enabled for PR #${pr.number} — will merge once all checks pass.`);
+            } catch (err) {
+              // Auto-merge may already be enabled, or repo setting is off — log but don't fail
+              console.log(`⚠️ Could not enable auto-merge for PR #${pr.number}: ${err.message}`);
+              console.log(`   Make sure "Allow auto-merge" is enabled in repo Settings → General.`);
             }

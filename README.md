@@ -83,14 +83,18 @@ your-repo/
 │   │   └── feature_request.md
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   └── workflows/
-│       └── welcome.yml
-├── CONTRIBUTORS.md       ← Add your name here!
-├── FUN_FACTS.md          ← Add a quote or fun fact here!
-├── CONTRIBUTING.md       ← Read this before contributing
+│       ├── auto-merge.yml   ← Queues safe PRs for auto-merge after CI passes
+│       ├── ci.yml           ← Validates that only allowed files were changed
+│       └── welcome.yml      ← Greets first-time contributors
+├── CONTRIBUTORS.md          ← Add your name here!
+├── FUN_FACTS.md             ← Add a quote or fun fact here!
+├── CONTRIBUTING.md          ← Read this before contributing
 ├── CODE_OF_CONDUCT.md
 ├── LICENSE
 └── README.md
 ```
+
+> **For maintainers:** Auto-merge requires one-time setup — go to **Settings → General → Pull Requests** and enable **"Allow auto-merge"**. Also add a branch protection rule on `main` that requires the **CI Check** status to pass before merging.
 
 ---
 

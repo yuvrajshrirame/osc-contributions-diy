@@ -18,41 +18,51 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-
             const sender = context.payload.sender.login;
             const isPR = context.eventName === 'pull_request_target';
 
-            // Check if this is their first PR or Issue
-            const query = isPR
-              ? github.rest.pulls.list({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  state: 'all'
-                })
-              : github.rest.issues.listForRepo({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  state: 'all',
-                  creator: sender
-                });
+            let isFirstTime = false;
 
-            const result = await query;
-            const items = result.data.filter(i => i.user.login === sender);
+            if (isPR) {
+              // Use paginate to fetch ALL PRs — not just the default 30-item page.
+              // Filter to this user only, then check if this is their first.
+              const allPRs = await github.paginate(github.rest.pulls.list, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                per_page: 100
+              });
+              const userPRs = allPRs.filter(pr => pr.user.login === sender);
+              isFirstTime = userPRs.length === 1;
+            } else {
+              // For issues, the API supports filtering by creator directly —
+              // much more efficient than fetching everything and filtering client-side.
+              const userIssues = await github.paginate(github.rest.issues.listForRepo, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'all',
+                creator: sender,
+                per_page: 100
+              });
+              // Exclude PRs from the count (GitHub returns PRs in the issues list too)
+              const issuesOnly = userIssues.filter(i => !i.pull_request);
+              isFirstTime = issuesOnly.length === 1;
+            }
 
-            if (items.length === 1) {
-              if (isPR) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.payload.pull_request.number,
-                  body: `🎉 Hey @${sender}! Congrats on your **first Pull Request** here!\n\nA maintainer will review it shortly. While you wait:\n- ✅ Make sure you followed the steps in [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md)\n- ✅ Check your PR description is filled in\n\nThanks for contributing! 🚀`
-                });
-              } else {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.payload.issue.number,
-                  body: `👋 Hey @${sender}! Thanks for opening your first issue here!\n\nA maintainer will look into this soon.\n\nMeanwhile, check out our [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) to get started with contributing! 🌱`
-                });
-              }
+            if (!isFirstTime) return;
+
+            if (isPR) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: `🎉 Hey @${sender}! Congrats on your **first Pull Request** here!\n\nA maintainer will review it shortly. While you wait:\n- ✅ Make sure you followed the steps in [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md)\n- ✅ Check your PR description is filled in\n\nThanks for contributing! 🚀`
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                body: `👋 Hey @${sender}! Thanks for opening your first issue here!\n\nA maintainer will look into this soon.\n\nMeanwhile, check out our [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) to get started with contributing! 🌱`
+              });
             }
