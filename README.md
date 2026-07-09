@@ -135,3 +135,8 @@ It helps more beginners discover this project!
 ---
 
 <p align="center">Made with ❤️ for the open source community</p>
+
+## Contributing
+
+<!-- gfi-4 -->
+Thanks for considering a contribution! See open issues labeled `good first issue`.
